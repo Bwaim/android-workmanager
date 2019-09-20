@@ -16,17 +16,20 @@
 
 package com.example.background;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.ViewModelProviders;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
-import androidx.annotation.Nullable;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RadioGroup;
-
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProviders;
+import androidx.work.Data;
+import androidx.work.WorkInfo;
 import com.bumptech.glide.Glide;
 
 
@@ -63,6 +66,37 @@ public class BlurActivity extends AppCompatActivity {
 
         // Setup blur image file button
         mGoButton.setOnClickListener(view -> mViewModel.applyBlur(getBlurLevel()));
+
+        mOutputButton.setOnClickListener(view -> {
+            Uri currentUri = mViewModel.getOutputUri();
+            if (currentUri != null) {
+                Intent actionView = new Intent(Intent.ACTION_VIEW, currentUri);
+                if (actionView.resolveActivity(getPackageManager()) != null) {
+                    startActivity(actionView);
+                }
+            }
+        });
+
+        mCancelButton.setOnClickListener(view -> mViewModel.cancelWork());
+
+        mViewModel.getSavedWorkInfo().observe(this, workInfos -> {
+            if (workInfos != null && !workInfos.isEmpty()) {
+                WorkInfo workInfo = workInfos.get(0);
+
+                if (workInfo.getState().isFinished()) {
+                    showWorkFinished();
+
+                    Data outputData = workInfo.getOutputData();
+                    String outputImageUri = outputData.getString(Constants.KEY_IMAGE_URI);
+                    if (!TextUtils.isEmpty(outputImageUri)) {
+                        mViewModel.setOutputUri(outputImageUri);
+                        mOutputButton.setVisibility(View.VISIBLE);
+                    }
+                } else {
+                    showWorkInProgress();
+                }
+            }
+        });
     }
 
     /**
